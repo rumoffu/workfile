@@ -106,7 +106,7 @@ public class bloom_driver{
 		{
 			testcase = tc;
 		//for loop for kmer's
-		for(int km = 5; km < 21; km = km++)
+		for(int km = 5; km < 21; km++)
 		{
 	        // Get and store the current time -- for timing
 	        long runstart;
