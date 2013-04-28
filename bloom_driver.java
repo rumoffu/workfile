@@ -102,11 +102,11 @@ public class bloom_driver{
 		else if(norm == 1) normalize = true;
 		
 		//for testcase
-		for(int tc = 1; tc <= 1; tc++)
+		for(int tc = 1; tc <= 4; tc++)
 		{
 			testcase = tc;
 		//for loop for kmer's
-		for(int km = 21; km < 22; km = km++)
+		for(int km = 5; km < 21; km = km++)
 		{
 	        // Get and store the current time -- for timing
 	        long runstart;
