@@ -65,15 +65,18 @@ public class bloom_driver{
     }
 	/**
 	 * @param args
-	 * @throws FileNotFoundException 
+	 * @throws IOException 
 	 */
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws IOException {
 		/* 1) read in + and - enhancers and count 
 		 * 2) save first 1/4 for testing,
 		 * 3) use 3/4 of enhancers to break into kmers and train + and - bloom filters
 		 * 4) run in test data 
 		 * 5) report # correct and data
 		 * */
+
+        
+		boolean consoleprint = false;
 		double false_positive_probability = 0.1;
 		int kmer_size = 0;
 		boolean normalize = false;
@@ -89,6 +92,28 @@ public class bloom_driver{
 			System.out.println("usage: kmer_size(int) testcase(1-4) normalize(true/false)");
 			System.exit(0);
 		}
+		PrintWriter toFile = new PrintWriter(new FileWriter("sum.txt"));
+		toFile.println("kmer_size\ttestcase\tnormalize\t%+right\t%-right\t%avgright\t%phit\t%nhit\truntime\tpos_diff\tneg_diff");
+		//for normalize and non-normal
+		for(int norm = 0; norm < 2; norm++)
+		{
+			
+		if(norm == 0) normalize = false;
+		else if(norm == 1) normalize = true;
+		
+		//for testcase
+		for(int tc = 1; tc <= 1; tc++)
+		{
+			testcase = tc;
+		//for loop for kmer's
+		for(int km = 21; km < 22; km = km++)
+		{
+	        // Get and store the current time -- for timing
+	        long runstart;
+	        runstart = System.currentTimeMillis();
+	        
+			kmer_size = km;
+			//if(km == 21) kmer_size = 50;
 		Scanner infile1 = new Scanner( new FileReader( "enh_fb.fa" ) );
 		Scanner infile2 = new Scanner( new FileReader( "nullseqsi_200_1.fa" ) );
 		String title;
@@ -179,9 +204,9 @@ public class bloom_driver{
 					ntrain[ncount++] = j;
 				break;
 			case 4://test on fourth 1/4, train on rest
-				for(int i = (3 * num_pos_reads) / 4; i < num_pos_reads; i++)
+				for(int i = (3 * num_pos_reads) / 4; i < num_pos_reads -1; i++)
 					ptest[pt++] = i;
-				for(int i = (3 * num_neg_reads) / 4; i < num_neg_reads; i++)
+				for(int i = (3 * num_neg_reads) / 4; i < num_neg_reads -1; i++)
 					ntest[nt++] = i;
 				for(int i = 0; i < (3 * num_pos_reads) / 4; i++)
 					ptrain[pcount++] = i;
@@ -232,8 +257,12 @@ public class bloom_driver{
 		//test on 1/4 of saved data - the test set
 		int num_pos_right = 0; //number of positive reads called positive
 		int num_neg_right = 0; //number of negative reads called negative
-		double pos_neg_diff = 0; //absolute difference between # kmers called pos and neg
 		
+		double pphit = 0; double pnhit = 0;
+		double nphit = 0; double nnhit = 0;
+		int num_pkmers = 0; int num_nkmers = 0;
+		
+		//positive tests
 		for(int i = 0; i < ptest.length; i++) 
 		{//for test portion of the reads
 			for(int j = 0; j <= pos_reads[ptest[i]].seq.length()-kmer_size; j++) 
@@ -248,19 +277,22 @@ public class bloom_driver{
 					pos_reads[ptest[i]].num_neg_kmers++;	
 				}
 			}
-			pos_reads[ptest[i]].num_kmers = pos_reads[ptest[i]].seq.length()-kmer_size;
+			pos_reads[ptest[i]].num_kmers = pos_reads[ptest[i]].seq.length()-kmer_size + 1;
 			pos_reads[ptest[i]].actual_pos = true;
 			if( pos_reads[ptest[i]].num_pos_kmers - pos_reads[ptest[i]].num_neg_kmers > 0)
 			{
-				pos_neg_diff += pos_reads[ptest[i]].num_pos_kmers - pos_reads[ptest[i]].num_neg_kmers;
+				////ppos_neg_diff += pos_reads[ptest[i]].num_pos_kmers - pos_reads[ptest[i]].num_neg_kmers;
 				pos_reads[ptest[i]].called_pos = true;
 				num_pos_right += 1;
 			}
 			else //more negative so call negative
 			{
-				pos_neg_diff += pos_reads[ptest[i]].num_neg_kmers - pos_reads[ptest[i]].num_pos_kmers;
+				////ppos_neg_diff += pos_reads[ptest[i]].num_pos_kmers - pos_reads[ptest[i]].num_neg_kmers;
 				pos_reads[ptest[i]].called_pos = false;
 			}
+			pphit += pos_reads[ptest[i]].num_pos_kmers;
+			pnhit += pos_reads[ptest[i]].num_neg_kmers;
+			num_pkmers += pos_reads[ptest[i]].num_kmers;
 		}
 		//negative tests
 		for(int i = 0 ; i < ntest.length; i++) 
@@ -277,30 +309,77 @@ public class bloom_driver{
 					neg_reads[ntest[i]].num_neg_kmers++;
 				}
 			}
-			neg_reads[ntest[i]].num_kmers = neg_reads[ntest[i]].seq.length()-kmer_size;
+			neg_reads[ntest[i]].num_kmers = neg_reads[ntest[i]].seq.length()-kmer_size + 1;
 			neg_reads[ntest[i]].actual_pos = false;
 			if( neg_reads[ntest[i]].num_pos_kmers - neg_reads[ntest[i]].num_neg_kmers > 0)
 			{
-				pos_neg_diff += neg_reads[ntest[i]].num_pos_kmers - neg_reads[ntest[i]].num_neg_kmers;
+	////			npos_neg_diff += neg_reads[ntest[i]].num_pos_kmers - neg_reads[ntest[i]].num_neg_kmers;
 				neg_reads[ntest[i]].called_pos = true;
 			}
 			else //more negative so call negative
 			{
-				pos_neg_diff += neg_reads[ntest[i]].num_neg_kmers - neg_reads[ntest[i]].num_pos_kmers;
+	////			npos_neg_diff += neg_reads[ntest[i]].num_pos_kmers - neg_reads[ntest[i]].num_neg_kmers;
 				neg_reads[ntest[i]].called_pos = false;
 				num_neg_right += 1;
 			}
+			nphit += neg_reads[ntest[i]].num_pos_kmers;
+			nnhit += neg_reads[ntest[i]].num_neg_kmers;
+			num_nkmers += neg_reads[ntest[i]].num_kmers;
 		}
-		double average_pos_neg_difference = pos_neg_diff / (ptest.length + ntest.length);
+		String s = "" + kmer_size + "_" + testcase + "_" + normalize + ".txt";
+		double ppos_neg_diff = 0; //absolute difference between # kmers called pos and neg
+		double npos_neg_diff = 0; //same but for negative tests
+		PrintWriter toFile1 = new PrintWriter(new FileWriter(s));
+		for(int i = 0; i < ptest.length; i++)
+		{
+			ppos_neg_diff += pos_reads[ptest[i]].num_pos_kmers - pos_reads[ptest[i]].num_neg_kmers;
+			toFile1.println(i + "\t" + pos_reads[ptest[i]].num_pos_kmers + "\t" + pos_reads[ptest[i]].num_neg_kmers + "\t" + pos_reads[ptest[i]].num_kmers);
+		}
+		toFile1.println("NEGATIVE");
+		for(int i = 0; i < ntest.length; i++)
+		{
+			npos_neg_diff += neg_reads[ntest[i]].num_pos_kmers - neg_reads[ntest[i]].num_neg_kmers;
+			toFile1.println(i + "\t" + neg_reads[ntest[i]].num_pos_kmers + "\t" + neg_reads[ntest[i]].num_neg_kmers + "\t" + neg_reads[ntest[i]].num_kmers);
+		}
+		toFile1.close();
+
+		double average_ppos_neg_difference = ppos_neg_diff / (ptest.length);
+		double average_npos_neg_difference = npos_neg_diff / (ntest.length);
+		if(consoleprint)
+		{
 		System.out.println("kmer_size: " + kmer_size);
 		System.out.println("#positive right: " + num_pos_right);
 		System.out.println("#positive tests: " + ptest.length);
+		System.out.println("% positive right: " + num_pos_right / (double) ptest.length);
 		System.out.println("#negative right: " + num_neg_right);
 		System.out.println("#negtaive tests: " + ntest.length);
-		System.out.println("average_pos_neg_difference: " + average_pos_neg_difference);
+		System.out.println("% negative right: " + num_neg_right / (double) ntest.length);
+		////System.out.println("average_ppos_neg_difference: " + average_ppos_neg_difference);
 		double average_kmers = (total_pos_length + total_neg_length) / (num_pos_reads + num_neg_reads);
 		System.out.println("average_kmers per read: " + average_kmers);
-
+		System.out.println("average % right:"+"\t" + (num_pos_right + num_neg_right ) / (double) (ptest.length + ntest.length));
+		}
+		String data = "";
+		data = data + kmer_size + "\t";
+		data = data + testcase + "\t";
+		data = data + normalize + "\t";
+		data = data + num_pos_right / (double) ptest.length + "\t";
+		data = data + num_neg_right / (double) ntest.length + "\t";
+		data = data + (num_pos_right + num_neg_right ) / (double) (ptest.length + ntest.length)+ "\t"; //avg right
+		data = data + pphit / num_pkmers+ "\t";
+		data = data + nphit / num_nkmers+ "\t";
+      	// Output search time 
+        long elapsed = System.currentTimeMillis() - runstart;
+        data = data + elapsed + "\t";
+        data = data + average_ppos_neg_difference + "\t";
+        data = data + average_npos_neg_difference + "\t";
+		toFile.println(data);
+ 
+     	
+		}//end kmer loop
+		}//end testcase loop
+		}//end normalize loop
+		toFile.close();
 	}
 
 }
